@@ -28,44 +28,46 @@
 >DNS SP: Aliyun DNS
 
 #### 1.1 安装Python环境
+<pre>
 <code>
-&gt; wget https://www.python.org/ftp/python/2.7.15/Python-2.7.15.tgz  
-
-&gt; tar -vxf Python-2.7.15.tgz
-cd Python-2.7.15  
-&gt; ./configure --prefix=/usr/local/python27  
-&gt; make  
-&gt; sudo make install  
-&gt; cd /usr/local/python27/  
-&gt; ln -s /usr/local/python27/bin/python2.7 / usr/bin/python  
-&gt; sudo ln -s /usr/local/python27/bin/python2.7 /usr/bin/python  
-&gt; python -V  
-&gt; wget https://bootstrap.pypa.io/get-pip.py  
-&gt; sudo python get-pip.py  
-&gt; ln -s /usr/local/python27/bin/pip /usr/bin/pip  
-&gt; sudo ln -s /usr/local/python27/bin/pip /usr/bin/pip   
+$ wget https://www.python.org/ftp/python/2.7.15/Python-2.7.15.tgz   
+$ tar -vxf Python-2.7.15.tgz  
+$ cd Python-2.7.15  
+$ ./configure --prefix=/usr/local/python27  
+$ make  
+$ sudo make install  
+$ cd /usr/local/python27/ 
+$ ln -s /usr/local/python27/bin/python2.7 /usr/bin/python  
+$ sudo ln -s /usr/local/python27/bin/python2.7 /usr/bin/python  
+$ python -V  
+$ wget https://bootstrap.pypa.io/get-pip.py  
+$ sudo python get-pip.py  
+$ ln -s /usr/local/python27/bin/pip /usr/bin/pip  
+$ sudo ln -s /usr/local/python27/bin/pip /usr/bin/pip   
 //安装virsualenv  
-&gt; sudo pip install virtualenv  
-&gt; sudo ln -s /usr/local/python27/bin/virtualenv /usr/bin/virtualenv  
+$ sudo pip install virtualenv  
+$ sudo ln -s /usr/local/python27/bin/virtualenv /usr/bin/virtualenv  
 </code>
+</pre>
 
 > 若系统中已存在旧版本的Python，需要将旧版本的Python重命名处理  
-> &gt; sudo mv python python2.6
+> $ sudo mv python python2.6
 
 #### 1.2 安装Certbot
 
+<pre>
 <code>
-&gt; wget https://dl.eff.org/certbot-auto
-
-&gt; chmod +x certbot-auto
+$ wget https://dl.eff.org/certbot-auto
+$ chmod +x certbot-auto
 </code>
+</pre>
 
 ### 2. 创建证书
 
 为了实现通配符证书，Let’s Encrypt 对 ACME 协议的实现进行了升级，只有 v2 协议才能支持通配符证书。
 
 <code>
-&gt; ./certbot-auto certonly --cert-name example.com --no-bootstrap --email example@gmail.com -d *.example.com -d example.com --manual --preferred-challenges dns --server https://acme-v02.api.letsencrypt.org/directory
+$ ./certbot-auto certonly --cert-name example.com --no-bootstrap --email example@gmail.com -d *.example.com -d example.com --manual --preferred-challenges dns --server https://acme-v02.api.letsencrypt.org/directory
 </code>
 
 > 参数说明:    
@@ -81,7 +83,7 @@ cd Python-2.7.15
 >
 > –server:  Let’s Encrypt ACME v2 版本使用的服务器不同于 v1 版本，需要显示指定,值为 https://acme-v02.api.letsencrypt.org/directory  
 >
->更多配置，见 [certbot-commands](https://certbot.eff.org/docs/using.html#certbot-commands)  
+> 更多配置，见 [certbot-commands](https://certbot.eff.org/docs/using.html#certbot-commands)  
 
 命令执行后,若非root用户执行,需要输入sudo 用户密码,然后继续；
 
@@ -96,7 +98,7 @@ Certbot会按-d指定的顺序域名顺序对域名进行验证，要求在置�
 
 > TXT 记录可设置最小TTL以快速生效;  
 > 等待过程中可使用dig命令检查是否已生效  
-> &gt; dig TXT _acme-challenge.example.com  | grep 记录值 |wc -l
+> $ dig TXT _acme-challenge.example.com  | grep 记录值 |wc -l
 
 Certbot执行完成后，会在/etc/letsencrypt/live/example.com/下会生成4个文件:  
 cert.pem  - Apache服务器端证书  
@@ -105,19 +107,21 @@ fullchain.pem  - Nginx所需要ssl_certificate文件
 privkey.pem - 安全证书KEY文件
 
 测试证书:
-> &gt; openssl x509 -in /etc/letsencrypt/live/example.com/fullchain.pem -noout -text
+> $ openssl x509 -in /etc/letsencrypt/live/example.com/fullchain.pem -noout -text
 
 生成证书步骤完成。
 ### 3. 配置Ngxin服务使用证书
 将证书和私钥做软链到指定文件:
 
+<pre>
 <code>
 $ sudo ln -s /etc/letsencrypt/live/example.com/fullchain.pem /usr.docs.ssl_curr/fullchain.pem  
-
 $ sudo ln -s /etc/letsencrypt/live/example.com/privkey.pem /usr.docs.ssl_curr/privkey.pem
 </code>
+</pre>
 
 nginx.conf:  
+<pre>
 <code>
 listen  80 default;  
 listen  443 default ssl;  
@@ -126,6 +130,7 @@ ssl_prefer_server_ciphers on;
 ssl_protocols TLSv1 TLSv1.1 TLSv1.2;  ssl_ciphers EECDH+CHACHA20:EECDH CHACHA20-draft:EECDH+AES128:RSA+AES128:EECDH+AES256:RSA+AES256:EECDH+3DES:RSA+3DES:!MD5;  ssl_certificate /usr/docs/ssl_curr/fullchain.pem;  
 ssl_certificate_key /usr/docs/ssl_curr/privkey.pem;  
 </code>
+</pre>
 
 重启Nginx:  
 <code>
@@ -139,7 +144,7 @@ $ sudo ./nginx -t -s reload
 > 原理：
 > 1. 执行Certbot续签命令：
 <code>
-./certbot-auto renew --cert-name example.com --manual-auth-hook /usr/docs/[scripts/manual-auth-hook-aliyundns.sh](scripts/manual-auth-hook-aliyundns.sh) --dry-run
+$ ./certbot-auto renew --cert-name example.com --manual-auth-hook /usr/docs/[scripts/manual-auth-hook-aliyundns.sh](scripts/manual-auth-hook-aliyundns.sh) --dry-run
 </code>  
 >
 > 2. 在域名认证过程中，调用阿里云DNS API/Namesilo API来动态添加/删除TXT记录，并使用dig命令扫描TXT记录(重复多次，知道成功)；

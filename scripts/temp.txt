@@ -1,0 +1,27 @@
+{
+    "result": {
+        "id": "016c3473d43d269b81c7aaed652c7b55",
+        "zone_id": "88efa8adb0225b4dfb82b8a958abfcb5",
+        "zone_name": "",
+        "name": "_acme-challenge",
+        "type": "TXT",
+        "content": "123",
+        "proxiable": false,
+        "proxied": false,
+        "ttl": 60,
+        "locked": false,
+        "meta": {
+            "auto_added": false,
+            "managed_by_apps": false,
+            "managed_by_argo_tunnel": false,
+            "source": "primary"
+        },
+        "comment": "_acme-challenge add",
+        "tags": [],
+        "created_on": "2023-02-26T09:39:49.476349Z",
+        "modified_on": "2023-02-26T09:39:49.476349Z"
+    },
+    "success": true,
+    "errors": [],
+    "messages": []
+}

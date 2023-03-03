@@ -1,11 +1,10 @@
 #!/bin/sh
-# dependence: dnsget , curl
+# dependence: dnsget , curl, jq(yum -y install jq | https://stedolan.github.io/jq/download/)
 # cloudflare domain operate API script
 # API: https://developers.cloudflare.com/api/operations/dns-records-for-a-zone-create-dns-record
 # return: 1 or 0; 1:SUCCESS ,0:FAIL
 #set -ex
-// TODO xxxxxx
-USAGE="Usage: $0 --key xxx --domain example.com --hostname xxx [OPTIONS] []
+USAGE="Usage: $0 --key xxx --auth --domain example.com --hostname xxx [OPTIONS] []
   --key                 set cloudflare Zone ID
   --auth                 set cloudflare auth
   --domain              set cloudflare domain. e.g.: example.com
@@ -62,9 +61,10 @@ RequestCloudflareAPI(){
 	if [[ "$1" = "dnsDeleteRecord" ]]; then
 		CLOUDFLARE_API_URL=$(GetCloudflareAPIUrl $1 $2)
 	fi
-	resp=`curl -s $CLOUDFLARE_API_URL`
+	resp=${curl -s $CLOUDFLARE_API_URL}
 	echo $resp|tr \\n ' '
 }
+
 CheckDnsTxtRecord(){
   isCheckedRecord=`dnsget -t TXT $HOSTNAME.$DOMAIN | grep $DNS_TXT_VAL |wc -l`
 	if [[ $isCheckedRecord -gt 0 ]]; then
@@ -73,18 +73,20 @@ CheckDnsTxtRecord(){
     echo 0
 	fi
 }
+
 STARTTIME=0
 export STARTTIME
+
 CheckDnsTxtRecordWait(){
 	if [[ "$STARTTIME" = 0 ]]; then
-		STARTTIME=`date +%s`
+		STARTTIME=${date +%s}
 	fi
   isCheckedRecord=$(CheckDnsTxtRecord)
 	if [[ $isCheckedRecord = 1 ]]; then
 		echo 1
 		exit 0
 	fi
-	now=`date +%s`
+	now=${date +%s}
 	echo "STARTTIME:$STARTTIME"
 	if [[ $(($now - $STARTTIME)) -lt 3600 ]]; then
 		sleep 5s

@@ -23,6 +23,7 @@ USAGE="Usage: $0 --base xxx --mahs xxx --mchs example.com --dh xxx [OPTIONS] []
   --dh                   set deployHook,like 'deploy-hook-nginx.sh',should under base path
   --aliyun               run aliyun config,this is default
   --namesilo             run namesilo config
+  --cloudflare             run cloudflare config
   --cert-name            set cert-name that specified on the first time created
   --help                 help
   e.g.(defalut):
@@ -43,7 +44,7 @@ do
         --mahs) manualAuthHookScript="$baseScriptPath/$2";shift 2;;
 				--mchs) manualCleanupHookScript="$baseScriptPath/$2";shift 2;;
 				--dh) deployHookNginx="$baseScriptPath/$2";shift 2;;
-				--namesilo) manualAuthHookScript=manualAuthHookScriptNamesilo; manualCleanupHookScript=manualCleanupHookScriptNamesilo ;shift 1;;
+				--namesilo) manualAuthHookScript=$manualAuthHookScriptNamesilo; manualCleanupHookScript=$manualCleanupHookScriptNamesilo ;shift 1;;
 				--cert-name) certName=$2;shift 2;;
         --help) showUsage;;
         *) break ;;

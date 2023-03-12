@@ -59,14 +59,14 @@ RequestCloudflareAPI(){
 	fi
 
 	if [[ "$1" = "dnsDeleteRecord" ]]; then
-		CLOUDFLARE_API_URL=$(GetCloudflareAPIUrl $1 $2)
+		CLOUDFLARE_API_URL=$(GetCloudflareAPIUrl "$1" "$2")
 	fi
 	resp=${curl -s $CLOUDFLARE_API_URL}
-	echo $resp|tr \\n ' '
+	echo "$resp"|tr \\n ' '
 }
 
 CheckDnsTxtRecord(){
-  isCheckedRecord=`dnsget -t TXT $HOSTNAME.$DOMAIN | grep $DNS_TXT_VAL |wc -l`
+  isCheckedRecord=${dnsget -t TXT "$HOSTNAME".$DOMAIN | grep $DNS_TXT_VAL |wc -l}
 	if [[ $isCheckedRecord -gt 0 ]]; then
 		echo 1
   else
@@ -74,12 +74,12 @@ CheckDnsTxtRecord(){
 	fi
 }
 
-STARTTIME=0
-export STARTTIME
+START_TIME=0
+export START_TIME
 
 CheckDnsTxtRecordWait(){
-	if [[ "$STARTTIME" = 0 ]]; then
-		STARTTIME=${date +%s}
+	if [[ "$START_TIME" = 0 ]]; then
+		START_TIME=${date +%s}
 	fi
   isCheckedRecord=$(CheckDnsTxtRecord)
 	if [[ $isCheckedRecord = 1 ]]; then
@@ -87,26 +87,29 @@ CheckDnsTxtRecordWait(){
 		exit 0
 	fi
 	now=${date +%s}
-	echo "STARTTIME:$STARTTIME"
-	if [[ $(($now - $STARTTIME)) -lt 3600 ]]; then
+	echo "START_TIME:$START_TIME"
+	if [[ $(($now - $START_TIME)) -lt 3600 ]]; then
 		sleep 5s
 		CheckDnsTxtRecordWait
 	fi
 }
-#return rrid
+# return rrid
+# echo '{"a":"123"}' |jq -c|jq '.a' => "123"
+# echo '{"a":"123", "b":true}' |jq -c|jq '.b' => true
 SetDNSTxtRecord(){
 	resp=$(RequestCloudflareAPI "dnsAddRecord")
+	echo 'dns add record response: ${resp}'
 	#complie json,return success TODO xxx
-	resp=`echo $resp | grep -oPm1 "(?<=<success>)[^<]" `
+	resp=${echo $resp | jq '.success'}
 	if [[ ${#resp} -gt 0 ]];then
-		echo $resp
+		echo "$resp"
 	fi
 	exit 0
 }
 
 #return 1
 DelDNSTxtRecord(){
-	resp=$(RequestCloudflareAPI "dnsDeleteRecord" "domain=$DOMAIN&rrid=$RRID")
+	resp=$(RequestCloudflareAPI "dnsDeleteRecord" "domain=$DOMAIN&rrid=$ID")
 	resp=`echo $resp | grep -oPm1 "(?<=<code>)\d*(?=<)"`
 	if [[ $resp = 300 ]];then
 		echo 1
@@ -121,7 +124,7 @@ DelDNSTxtRecord(){
 #IS_CHECK_DNS_TXT
 #IS_CHECK_DNS_TXT_WAIT
 #IS_SET_DNS_TXT
-#RRID DNS Record id
+#ID DNS Record id
 TTL=61
 if [[ $# = 0 ]]; then
 	showUsage
@@ -138,7 +141,7 @@ do
         --set-dns-txt) IS_SET_DNS_TXT=1; shift 1;;
 				--del-dns-txt) IS_DEL_DNS_TXT=1; shift 1;;
 				--txt) DNS_TXT_VAL=$2; shift 2;;
-				--rrid) RRID=$2; shift 2;;
+				--id) ID=$2; shift 2;;
         --help) showUsage;;
 #				--) break ;;
         *) break ;;

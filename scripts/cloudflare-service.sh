@@ -4,9 +4,9 @@
 # API: https://developers.cloudflare.com/api/operations/dns-records-for-a-zone-create-dns-record
 # return: 1 or 0; 1:SUCCESS ,0:FAIL
 #set -ex
-USAGE="Usage: $0 --key xxx --auth --domain example.com --hostname xxx [OPTIONS] []
-  --key                 set cloudflare Zone ID
-  --auth                 set cloudflare auth
+USAGE="Usage: $0 --zone-identifier xxx --token --domain example.com --hostname xxx [OPTIONS] []
+  --zone-identifier                 set cloudflare Zone ID
+  --token                 set cloudflare auth
   --domain              set cloudflare domain. e.g.: example.com
   --hostname            set hostname . e.g.: a is hostname in a.example.com
   --check-dns-txt       check DNS TXT record
@@ -14,59 +14,37 @@ USAGE="Usage: $0 --key xxx --auth --domain example.com --hostname xxx [OPTIONS] 
   --set-dns-txt         set DNS TXT record
   --del-dns-txt         delete DNS TXT record
   --txt                 DNS TXT value
-  --rrid                DNS Record id
+  --id                DNS Record id
   --help                help
   e.g.:
-  	./cloudflare-service.sh --key xxx --domain example.com --hostname xxx --txt txtxxx --check-dns-txt
-  	./cloudflare-service.sh --key xxx --domain example.com --hostname xxx --txt txtxxx --set-dns-txt
+  	./cloudflare-service.sh --zone-identifier xxx --token xxx --domain example.com --hostname xxx --txt txtxxx --check-dns-txt
+  	./cloudflare-service.sh --zone-identifier xxx --token xxx --domain example.com --hostname xxx --txt txtxxx --set-dns-txt
 "
 showUsage(){
 	echo "$USAGE"
 	exit 0
 }
-#VERSION:1
-#TYPE:xml
+
 #key:$CLOUDFLARE_ZONE_IDENTIFIER
-GetCloudflareAPIUrl(){
-# $1 OPERATION
-	echo "https://api.cloudflare.com/client/v4/zones/$CLOUDFLARE_ZONE_IDENTIFIER/dns_records --request POST 'https://api.cloudflare.com/client/v4/zones/88efa8adb0225b4dfb82b8a958abfcb5/dns_records' --header 'Content-Type: application/json' \
-                                                                                           --header 'Authorization: Bearer $CLOUDFLARE_AUTH' \
-                                                                                           --data-raw '{
-                                                                                             \"type\":\"TXT\",
-                                                                                             \"comment\": \"_acme-challenge add\",
-                                                                                             \"content\": \"$DNS_TXT_VAL\",
-                                                                                             \"name\": \"_acme-challenge\",
-                                                                                             \"priority\": 1,
-                                                                                             \"proxied\": false,
-                                                                                             \"ttl\": $TTL
-                                                                                           }'"
-}
 RequestCloudflareAPI(){
 # $1: OPERATION
 # $2: param
 	if [[ "$1" = "dnsAddRecord" ]]; then
-		CLOUDFLARE_API_URL="https://api.cloudflare.com/client/v4/zones/$CLOUDFLARE_ZONE_IDENTIFIER/dns_records --request POST 'https://api.cloudflare.com/client/v4/zones/88efa8adb0225b4dfb82b8a958abfcb5/dns_records' --header 'Content-Type: application/json' \
-                                                                                                           --header 'Authorization: Bearer $CLOUDFLARE_AUTH' \
-                                                                                                           --data-raw '{
-                                                                                                            \"type\":\"TXT\",
-                                                                                                            \"comment\": \"_acme-challenge add\",
-                                                                                                            \"content\": \"$DNS_TXT_VAL\",
-                                                                                                            \"name\": \"_acme-challenge\",
-                                                                                                            \"priority\": 1,
-                                                                                                            \"proxied\": false,
-                                                                                                            \"ttl\": $TTL
-                                                                                                          }'"
+		CLOUDFLARE_API_URL="curl -s --request POST https://api.cloudflare.com/client/v4/zones/$CLOUDFLARE_ZONE_IDENTIFIER/dns_records --header 'Content-Type: application/json' --header 'Authorization: Bearer $CLOUDFLARE_TOKEN' --data '{\"type\":\"TXT\",\"comment\": \"_acme-challenge add\",\"content\": \"$DNS_TXT_VAL\",\"name\": \"_acme-challenge\",\"priority\": 1,\"proxied\": false,\"ttl\": $TTL}'"
 	fi
 
 	if [[ "$1" = "dnsDeleteRecord" ]]; then
-		CLOUDFLARE_API_URL=$(GetCloudflareAPIUrl "$1" "$2")
+    CLOUDFLARE_API_URL="curl -s --request DELETE https://api.cloudflare.com/client/v4/zones/$CLOUDFLARE_ZONE_IDENTIFIER/dns_records/$ID --header 'Content-Type: application/json' --header 'Authorization: Bearer $CLOUDFLARE_TOKEN' "
 	fi
-	resp=${curl -s $CLOUDFLARE_API_URL}
+#	printf "dns record request($1): curl: %s" "$CLOUDFLARE_API_URL"
+	resp=$(echo "$CLOUDFLARE_API_URL" | sh)
+#	printf "## %s" `$resp`
 	echo "$resp"|tr \\n ' '
 }
 
+# CheckDnsTxtRecord
 CheckDnsTxtRecord(){
-  isCheckedRecord=${dnsget -t TXT "$HOSTNAME".$DOMAIN | grep $DNS_TXT_VAL |wc -l}
+  isCheckedRecord=$(dnsget -t TXT "$HOSTNAME".$DOMAIN | grep $DNS_TXT_VAL |wc -l)
 	if [[ $isCheckedRecord -gt 0 ]]; then
 		echo 1
   else
@@ -79,45 +57,51 @@ export START_TIME
 
 CheckDnsTxtRecordWait(){
 	if [[ "$START_TIME" = 0 ]]; then
-		START_TIME=${date +%s}
+		START_TIME=$(date +%s)
 	fi
   isCheckedRecord=$(CheckDnsTxtRecord)
 	if [[ $isCheckedRecord = 1 ]]; then
 		echo 1
 		exit 0
 	fi
-	now=${date +%s}
+	now=$(date +%s)
 	echo "START_TIME:$START_TIME"
 	if [[ $(($now - $START_TIME)) -lt 3600 ]]; then
 		sleep 5s
 		CheckDnsTxtRecordWait
 	fi
 }
-# return rrid
+# return recordId
 # echo '{"a":"123"}' |jq -c|jq '.a' => "123"
 # echo '{"a":"123", "b":true}' |jq -c|jq '.b' => true
+# echo '{"a":"123", "b":true, "c":{"c1":"c1"}}' |jq -c|jq '.c.c1' => "c1"
 SetDNSTxtRecord(){
 	resp=$(RequestCloudflareAPI "dnsAddRecord")
-	echo 'dns add record response: ${resp}'
-	#complie json,return success TODO xxx
-	resp=${echo $resp | jq '.success'}
-	if [[ ${#resp} -gt 0 ]];then
-		echo "$resp"
+	printf "dns add record response: %s \n" "$resp"
+	#complie json,return success
+	resp=$(echo "$resp" | jq '.success')
+	printf "## %s\n" "$resp"
+	if [[ $($resp) ]];then
+	  id=$(echo "$resp" | jq '.result.id')
+	  printf "dns add record response: id: %s \n" "$id"
+		echo "$id"
 	fi
 	exit 0
 }
 
 #return 1
 DelDNSTxtRecord(){
-	resp=$(RequestCloudflareAPI "dnsDeleteRecord" "domain=$DOMAIN&rrid=$ID")
-	resp=`echo $resp | grep -oPm1 "(?<=<code>)\d*(?=<)"`
-	if [[ $resp = 300 ]];then
-		echo 1
-	fi
+	resp=$(RequestCloudflareAPI "dnsDeleteRecord")
+	resp=$(echo "$resp" | jq '.success')
+#  printf "##delete %s\n" "$resp"
+  if [[ $($resp) ]];then
+    printf "dns delete record response success: id: %s \n" "$ID"
+    echo 1
+  fi
 	exit 0
 }
-#CLOUDFLARE_KEY=""
-#CLOUDFLARE_AUTH=""
+#CLOUDFLARE_ZONE_IDENTIFIER=""
+#CLOUDFLARE_TOKEN=""
 #DOMAIN=""
 #HOSTNAME=""
 #DNS_TXT_VAL=""
@@ -132,8 +116,8 @@ fi
 while [ -n "$1" ]
 do
         case "$1" in
-        --key) CLOUDFLARE_KEY=$2;shift 2;;
-        --auth) CLOUDFLARE_AUTH=$2;shift 2;;
+        --zone-identifier) CLOUDFLARE_ZONE_IDENTIFIER=$2;shift 2;;
+        --token) CLOUDFLARE_TOKEN=$2;shift 2;;
 				--domain) DOMAIN=$2;shift 2;;
 				--hostname) HOSTNAME=$2;shift 2;;
         --check-dns-txt) IS_CHECK_DNS_TXT=1; shift 1;;

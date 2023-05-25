@@ -21,16 +21,16 @@ IS_EXIST=$(sh "$servicePath" --key "$CLOUDFLARE_ZONE_IDENTIFIER" --auth "$CLOUDF
 if [[ $IS_EXIST = 1 ]]; then
 	exit 0
 fi
-#2. Set domain DNS TXT record 1:SUCCESS 0:FAIL
+#2. Set domain DNS TXT record 0:FAIL id:SUCCESS
 IS_SUCCEED=$(sh "$servicePath" --key "$CLOUDFLARE_ZONE_IDENTIFIER" --auth "$CLOUDFLARE_AUTH" --domain "$CERTBOT_DOMAIN" --hostname "$CREATE_DOMAIN" --txt "$CERTBOT_VALIDATION" --set-dns-txt)
 #if fail return
 if [[ ${#IS_SUCCED} = 0 ]];then
 	exit 1
 fi
-#3. Save DNS TXT temp file to local domain|host|rrid\n
+#3. Save DNS TXT temp file to local domain|host|id\n
 ${$CERTBOT_DOMAIN|$CREATE_DOMAIN|$IS_SUCCED\n}>>"$DOMAIN_TEMP_LOCAL_FILE"
 #4. validate DNS TXT record 1:SUCCESS 0:FAIL
-IS_SUCCEED1=${sh $servicePath --key $CLOUDFLARE_ZONE_IDENTIFIER --auth "$CLOUDFLARE_AUTH" --domain $CERTBOT_DOMAIN --hostname $CREATE_DOMAIN --txt $CERTBOT_VALIDATION --check-dns-txt-wait}
+IS_SUCCEED1=${sh $servicePath --key $CLOUDFLARE_ZONE_IDENTIFIER --auth "$CLOUDFLARE_AUTH" --domain $CERTBOT_DOMAIN --hostname $CREATE_DOMAIN --txt $CERTBOT_VALIDATION --del-dns-txt-wait}
 if [[ $IS_SUCCEED1 = 1 ]];then
 	exit 0
 fi

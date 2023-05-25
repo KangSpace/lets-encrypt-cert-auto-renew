@@ -3,17 +3,22 @@
 # echo $CERTBOT_VALIDATION
 # echo $CERTBOT_DOMAIN
 # echo $CERTBOT_TOKEN
-set -x
+#set -x
 basePath="/usr/docs"
 baseScriptPath="$basePath/scripts"
-#$baseScriptPath/
+#namesilo-auth-hook
 manualAuthHookScriptNamesilo="manual-auth-hook-namesilo.sh"
-#$baseScriptPath/
+#namesilo-cleanup-hook
 manualCleanupHookScriptNamesilo="manual-cleanup-hook-namesilo.sh"
+#cloudflare-auth-hook
+manualAuthHookScriptCloudflare="manual-auth-hook-cloudflare.sh"
+#cloudflare-cleanup-hook
+manualCleanupHookScriptCloudflare="manual-cleanup-hook-cloudflare.sh"
+
 # deployHookNginx="$baseScriptPath/deploy-hook-nginx.sh"
 #Default is aliyun
-manualAuthHookScript="$baseScriptPath/manual-auth-hook-aliyundns.sh"
-manualCleanupHookScript="$baseScriptPath/manual-cleanup-hook-aliyundns.sh"
+manualAuthHookScript="$baseScriptPath/manual-auth-hook-cloudflare.sh"
+manualCleanupHookScript="$baseScriptPath/manual-cleanup-hook-cloudflare.sh"
 deployHookNginx="$baseScriptPath/deploy-hook-nginx.sh"
 certName=""
 USAGE="Usage: $0 --base xxx --mahs xxx --mchs example.com --dh xxx [OPTIONS] []
@@ -45,6 +50,7 @@ do
 				--mchs) manualCleanupHookScript="$baseScriptPath/$2";shift 2;;
 				--dh) deployHookNginx="$baseScriptPath/$2";shift 2;;
 				--namesilo) manualAuthHookScript=$manualAuthHookScriptNamesilo; manualCleanupHookScript=$manualCleanupHookScriptNamesilo ;shift 1;;
+				--cloudflare) manualAuthHookScript=$manualAuthHookScriptCloudflare; manualCleanupHookScript=$manualCleanupHookScriptCloudflare ;shift 1;;
 				--cert-name) certName=$2;shift 2;;
         --help) showUsage;;
         *) break ;;
@@ -55,10 +61,10 @@ done
 CERTBOT_AUTO_RUN_FLAG_FILE="$basePath/CERTBOT_AUTO_RUN_FLAG"
 # check file exists
 if [[ -f $CERTBOT_AUTO_RUN_FLAG_FILE ]];then
-  certFlag=`cat $CERTBOT_AUTO_RUN_FLAG_FILE`
+  certFlag=$(cat $CERTBOT_AUTO_RUN_FLAG_FILE)
   lastRunTime="${certFlag//_1/}"
-  now=`date +%s`
-  succIdx=`expr index $certFlag _`
+  now=$(date +%s)
+  succIdx=$(expr index "$certFlag" _)
   if  [[ $succIdx = 0 ]] || [[ $certFlag =~ "_1" && $(($now - $lastRunTime)) -gt 6912000 ]]; then
     isNeedRun=1
   fi  
@@ -67,15 +73,15 @@ else
 fi
 if [[ $isNeedRun = 1 ]];then
   # config the cert-name , e.g.: example.com
-  sh $basePath/certbot-auto renew --cert-name $certName --manual-auth-hook $manualAuthHookScript --manual-cleanup-hook $manualCleanupHookScript --deploy-hook $deployHookNginx
+  sh $basePath/certbot-auto renew --cert-name "$certName" --manual-auth-hook $manualAuthHookScript --manual-cleanup-hook $manualCleanupHookScript --deploy-hook $deployHookNginx
   if [[ $? = 0 ]];then
-    echo `date +%s_1` > $CERTBOT_AUTO_RUN_FLAG_FILE
+    echo $(date +%s_1) > $CERTBOT_AUTO_RUN_FLAG_FILE
     #send email
-    sh $baseScriptPath/sendmail_server_event.sh "CERT UPDATE SUCCESS"
+    sh "$baseScriptPath"/sendmail_server_event.sh "CERT UPDATE SUCCESS"
   else
-    echo `date +%s` > $CERTBOT_AUTO_RUN_FLAG_FILE
+    echo $(date +%s) > $CERTBOT_AUTO_RUN_FLAG_FILE
     #send email
-    sh $baseScriptPath/sendmail_server_event.sh "CERT UPDATE FAIL"
+    sh "$baseScriptPath"/sendmail_server_event.sh "CERT UPDATE FAIL"
   echo ""
 
   fi
